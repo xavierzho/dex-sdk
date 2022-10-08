@@ -42,6 +42,7 @@ func (t Token) Equals(other Token) bool {
 	return t.ToAddress() == other.ToAddress()
 }
 
+// SortsBefore check is sort before new object
 func (t Token) SortsBefore(other Token) bool {
 	return strings.ToLower(t.Address) < strings.ToLower(other.Address)
 }

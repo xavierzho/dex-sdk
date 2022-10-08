@@ -3,6 +3,7 @@ package dexsdk
 import (
 	"github.com/Jonescy/dex-sdk/abi/pair-bsc"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/shopspring/decimal"
 )
 
 type Fetcher struct {
@@ -28,5 +29,10 @@ func (f Fetcher) GetReverses(token0, token1 Token) (Pair, error) {
 	if err != nil {
 		return Pair{}, err
 	}
-	return NewPair(NewTokenAmount(token0, result.Reserve0), NewTokenAmount(token1, result.Reserve1)), nil
+	reverse0 := decimal.NewFromBigInt(result.Reserve0, 0)
+	reverse1 := decimal.NewFromBigInt(result.Reserve1, 0)
+	if BigOne.Equal(reverse0) || BigOne.Equal(reverse1) {
+		return Pair{}, InsufficientAmountError
+	}
+	return NewPair(NewTokenAmount(token0, reverse0), NewTokenAmount(token1, reverse1)), nil
 }

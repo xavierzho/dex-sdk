@@ -1,6 +1,8 @@
 package dexsdk
 
-import "math/big"
+import (
+	"github.com/shopspring/decimal"
+)
 
 var FactoryAddressMap = map[ChainId]string{
 	BscMain: "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
@@ -14,9 +16,9 @@ var InitCodeHash = map[ChainId]string{
 	EthMain: "0x96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f",
 }
 
-var FeesNumerator = big.NewInt(9975)
-var FeesDenominator = big.NewInt(10000)
-var BigOne = big.NewInt(1)
-var BigZero = big.NewInt(0)
-var BigTen = big.NewInt(10)
-var MinimumLiquidity = big.NewInt(1000)
+var FeesNumerator = decimal.NewFromInt(9975)
+var FeesDenominator = decimal.NewFromInt(10000)
+var BigOne = decimal.NewFromInt(1)
+var BigZero = decimal.NewFromInt(0)
+var BigTen = decimal.NewFromInt(10)
+var MinimumLiquidity = decimal.NewFromInt(1000)

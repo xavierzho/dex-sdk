@@ -3,10 +3,10 @@ package dexsdk
 import (
 	"errors"
 	"fmt"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/shopspring/decimal"
+	"math"
 )
 
 // Pair trading pair
@@ -18,6 +18,7 @@ type Pair struct {
 // InsufficientAmountError errors
 var (
 	InsufficientAmountError = errors.New("insufficient amount")
+	TokenExistError         = errors.New("pair not this token")
 )
 
 // PairAddressCache cache already query pair
@@ -88,6 +89,10 @@ func (p Pair) ReverseOf(token Token) TokenAmount {
 
 // GetOutputAmount provide input amount calc output amount
 func (p Pair) GetOutputAmount(inputAmount TokenAmount) (TokenAmount, Pair, error) {
+	if !p.involvesToken(inputAmount.Token) {
+		return TokenAmount{}, Pair{}, TokenExistError
+	}
+	p.Reverse0().Raw.Cmp(BigZero)
 	if p.Reverse0().Raw.Cmp(BigZero) == 0 || p.Reverse1().Raw.Cmp(BigZero) == 0 {
 		return TokenAmount{}, Pair{}, InsufficientAmountError
 	}
@@ -97,15 +102,19 @@ func (p Pair) GetOutputAmount(inputAmount TokenAmount) (TokenAmount, Pair, error
 	}
 	var inputReverse = p.ReverseOf(inputAmount.Token)
 	var outputReverse = p.ReverseOf(outputToken)
-	var inputAmountWithFee = inputAmount.Raw.Mul(inputAmount.Raw, FeesNumerator)
-	var numerator = inputAmountWithFee.Mul(inputAmountWithFee, outputReverse.Raw)
-	var denominator = inputAmountWithFee.Add(inputAmountWithFee, inputReverse.Raw.Mul(inputReverse.Raw, FeesNumerator))
-	var outputAmount = NewTokenAmount(outputToken, numerator.Div(numerator, denominator))
-	return outputAmount, NewPair(inputReverse.Add(inputAmount), outputAmount.Sub(inputAmount)), nil
+
+	var inputAmountWithFee = inputAmount.Raw.Mul(FeesNumerator)
+	var numerator = inputAmountWithFee.Mul(outputReverse.Raw)
+	var denominator = inputAmountWithFee.Add(inputReverse.Raw.Mul(FeesDenominator))
+	var outputAmount = NewTokenAmount(outputToken, numerator.Div(denominator))
+	return outputAmount, NewPair(inputReverse.Add(inputAmount), outputReverse.Sub(outputAmount)), nil
 }
 
 // GetInputAmount provide output amount calc input amount
 func (p Pair) GetInputAmount(outputAmount TokenAmount) (TokenAmount, Pair, error) {
+	if !p.involvesToken(outputAmount.Token) {
+		return TokenAmount{}, Pair{}, TokenExistError
+	}
 	if p.Reverse0().Raw.Cmp(BigZero) == 0 ||
 		p.Reverse1().Raw.Cmp(BigZero) == 0 ||
 		outputAmount.Raw.Cmp(p.ReverseOf(outputAmount.Token).Raw) > -1 {
@@ -117,23 +126,25 @@ func (p Pair) GetInputAmount(outputAmount TokenAmount) (TokenAmount, Pair, error
 	}
 	var outputReverse = p.ReverseOf(outputAmount.Token)
 	var inputReverse = p.ReverseOf(inputToken)
-	var numerator = FeesDenominator.Mul(FeesDenominator, inputReverse.Raw.Mul(inputReverse.Raw, outputAmount.Raw))
-	var denominator = FeesNumerator.Mul(FeesNumerator, outputReverse.Raw.Sub(outputReverse.Raw, outputAmount.Raw))
-	var inputAmount = NewTokenAmount(inputToken, BigOne.Add(BigOne, numerator.Div(numerator, denominator)))
-	return inputAmount, NewPair(inputReverse.Add(inputReverse), outputReverse.Sub(outputReverse)), nil
+	var numerator = FeesDenominator.Mul(inputReverse.Raw.Mul(outputAmount.Raw))
+	var denominator = FeesNumerator.Mul(outputReverse.Raw.Sub(outputAmount.Raw))
+	var inputAmount = NewTokenAmount(inputToken, BigOne.Add(numerator.Div(denominator)))
+	return inputAmount, NewPair(inputReverse.Add(inputAmount), outputReverse.Sub(outputAmount)), nil
 }
 
 // GetLiquidityMinted calc lp has been minted
 func (p Pair) GetLiquidityMinted(totalSupply, tokenAmountA, tokenAmountB TokenAmount) (TokenAmount, error) {
-	var liquidity *big.Int
+	var liquidity decimal.Decimal
 	if !tokenAmountA.SortsBefore(tokenAmountB.Token) {
 		tokenAmountA, tokenAmountB = tokenAmountB, tokenAmountA
 	}
 	if totalSupply.Raw.Cmp(BigZero) == 0 {
-		liquidity = BigOne.Sub(BigOne.Sqrt(BigOne.Mul(p.TokenAmounts[0].Raw, p.TokenAmounts[1].Raw)), MinimumLiquidity)
+		sf, _ := p.TokenAmounts[0].Raw.Mul(p.TokenAmounts[1].Raw).Float64()
+		liquidity = decimal.NewFromFloat(math.Sqrt(sf)).Sub(MinimumLiquidity)
 	} else {
-		amount0 := BigOne.Div(BigOne.Mul(p.TokenAmounts[0].Raw, totalSupply.Raw), p.Reverse0().Raw)
-		amount1 := BigOne.Div(BigOne.Mul(p.TokenAmounts[1].Raw, totalSupply.Raw), p.Reverse1().Raw)
+
+		amount0 := p.TokenAmounts[0].Raw.Div(totalSupply.Raw).Div(p.Reverse0().Raw)
+		amount1 := p.TokenAmounts[1].Raw.Div(totalSupply.Raw).Div(p.Reverse1().Raw)
 		if amount0.Cmp(amount1) > -1 {
 			liquidity = amount0
 		} else {
@@ -144,4 +155,8 @@ func (p Pair) GetLiquidityMinted(totalSupply, tokenAmountA, tokenAmountB TokenAm
 		return TokenAmount{}, InsufficientAmountError
 	}
 	return NewTokenAmount(p.LiquidityToken, liquidity), nil
+}
+
+func (p Pair) involvesToken(token Token) bool {
+	return token.Equals(p.Token0()) || token.Equals(p.Token1())
 }
