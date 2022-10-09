@@ -1,4 +1,6 @@
 # dex-sdk
+[![Go Reference](https://pkg.go.dev/badge/github.com/Jonescy/dex-sdk#section-readme.svg)](https://pkg.go.dev/github.com/Jonescy/dex-sdk#section-readme)
+
 A dex(Decentralized Exchange) that supports the uniswap v2 contract variant
 - [x] BSC(Pancake Swap V2)
 - [x] ETH(Uniswap V2)
