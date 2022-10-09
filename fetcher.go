@@ -2,6 +2,7 @@ package dexsdk
 
 import (
 	"errors"
+	"math/big"
 	"sync"
 
 	"github.com/Jonescy/dex-sdk/abi/erc20"
@@ -14,12 +15,14 @@ import (
 type Fetcher struct {
 	backend bind.ContractBackend
 	ChainId ChainId
+	caller  *bind.CallOpts
 }
 
 func NewFetcher(b bind.ContractBackend, chainId ChainId) Fetcher {
 	return Fetcher{
 		b,
 		chainId,
+		&bind.CallOpts{},
 	}
 }
 
@@ -32,7 +35,7 @@ func (f Fetcher) GetReverses(token0, token1 Token) (Pair, error) {
 	if err != nil {
 		return Pair{}, err
 	}
-	result, err := contract.GetReserves(&bind.CallOpts{})
+	result, err := contract.GetReserves(f.caller)
 	if err != nil {
 		return Pair{}, err
 	}
@@ -45,7 +48,6 @@ func (f Fetcher) GetReverses(token0, token1 Token) (Pair, error) {
 }
 
 func (f Fetcher) GetTokenInfo(address common.Address) (Token, error) {
-	var caller bind.CallOpts
 	var decimals uint8
 	var name string
 	var symbol string
@@ -58,15 +60,15 @@ func (f Fetcher) GetTokenInfo(address common.Address) (Token, error) {
 	go func(caller *bind.CallOpts) {
 		decimals, _ = contract.Decimals(caller)
 		wg.Done()
-	}(&caller)
+	}(f.caller)
 	go func(caller *bind.CallOpts) {
 		name, _ = contract.Name(caller)
 		wg.Done()
-	}(&caller)
+	}(f.caller)
 	go func(caller *bind.CallOpts) {
 		symbol, _ = contract.Symbol(caller)
 		wg.Done()
-	}(&caller)
+	}(f.caller)
 	wg.Wait()
 	if decimals == 0 {
 		return Token{}, errors.New("no decimal")
@@ -78,4 +80,20 @@ func (f Fetcher) GetTokenInfo(address common.Address) (Token, error) {
 		return Token{}, errors.New("no symbol")
 	}
 	return NewToken(address.String(), int8(decimals), f.ChainId, name, symbol), nil
+}
+
+func (f Fetcher) GetTotalSupply(address common.Address) (*big.Int, error) {
+	contract, err := erc20.NewErc20Caller(address, f.backend)
+	if err != nil {
+		return nil, err
+	}
+	return contract.TotalSupply(f.caller)
+}
+
+func (f Fetcher) GetKLast(address common.Address) (*big.Int, error) {
+	var contract, err = pair.NewPairCaller(address, f.backend)
+	if err != nil {
+		return nil, err
+	}
+	return contract.KLast(f.caller)
 }

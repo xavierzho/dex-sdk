@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/shopspring/decimal"
 	"math"
+	"math/big"
 )
 
 // Pair trading pair
@@ -159,4 +160,38 @@ func (p Pair) GetLiquidityMinted(totalSupply, tokenAmountA, tokenAmountB TokenAm
 
 func (p Pair) involvesToken(token Token) bool {
 	return token.Equals(p.Token0()) || token.Equals(p.Token1())
+}
+
+// GetLiquidityAmount get liquidity amount
+func (p Pair) GetLiquidityAmount(token Token, totalSupply *big.Int, liquidity TokenAmount, feeOn bool, kLast *big.Int) (TokenAmount, error) {
+	var TotalSupply = decimal.NewFromBigInt(totalSupply, 0)
+
+	if !p.involvesToken(token) {
+		return TokenAmount{}, errors.New("pair no contains this token")
+	}
+	if !liquidity.Token.Equals(p.LiquidityToken) || !liquidity.Raw.LessThanOrEqual(TotalSupply) {
+		return TokenAmount{}, errors.New("liquidity token is wrong")
+	}
+	var totalSupplyAdjusted decimal.Decimal
+	if !feeOn {
+		totalSupplyAdjusted = TotalSupply
+	} else {
+		var kLastDecimal = decimal.NewFromBigInt(kLast, 0)
+		if !kLastDecimal.Equal(BigZero) {
+			var rootK = p.Reverse0().Raw.Mul(p.Reverse1().Raw)
+			var rootKLast = decimal.NewFromBigInt(kLast.Sqrt(kLast), 0)
+			if rootK.GreaterThan(rootKLast) {
+				var numerator = TotalSupply.Mul(rootK.Sub(rootKLast))
+				var denominator = rootKLast.Add(rootK.Mul(BigFive))
+				var feeLiquidity = numerator.Div(denominator)
+				totalSupplyAdjusted = TotalSupply.Add(feeLiquidity)
+			} else {
+				totalSupplyAdjusted = TotalSupply
+			}
+
+		} else {
+			totalSupplyAdjusted = TotalSupply
+		}
+	}
+	return NewTokenAmount(token, liquidity.Raw.Mul(p.ReverseOf(token).Raw).Div(totalSupplyAdjusted)), nil
 }
