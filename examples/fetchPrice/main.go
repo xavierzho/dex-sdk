@@ -1,13 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	dexsdk "github.com/Jonescy/dex-sdk"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/shopspring/decimal"
 )
 
@@ -15,17 +14,14 @@ import (
 
 func main() {
 	s := time.Now()
-	// if not websocket endpoint using rpc url(suggest thirty-part query node)
-	rpcCli, err := rpc.Dial("https://bsc-dataseed1.ninicoin.io/")
+	// new ethereum caller
+	cli, err := dexsdk.NewCaller("https://bsc-dataseed1.ninicoin.io/")
+	chainID, err := cli.ChainID(context.Background())
 	if err != nil {
 		panic(err)
 	}
-	cli := ethclient.NewClient(rpcCli)
-	// also has websocket endpoint using wss url
-	//cli, err = ethclient.Dial("<wss here>")
-
 	// new on chain fetcher
-	fetcher := dexsdk.NewFetcher(cli, dexsdk.BscMain)
+	fetcher := dexsdk.NewFetcher(cli, dexsdk.ChainId(chainID.Int64()))
 	token0, err := fetcher.GetTokenInfo(common.HexToAddress("0x55d398326f99059fF775485246999027B3197955"))
 	if err != nil {
 		panic(err)
