@@ -40,5 +40,5 @@ func main() {
 	// calc after pair
 	fmt.Println("new pair:", newPair)
 	// output amount
-	fmt.Println(dexsdk.ParseEther(outputAmount.Raw.String()))
+	fmt.Println(dexsdk.ParseEther(outputAmount.Raw))
 }
