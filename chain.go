@@ -4,11 +4,13 @@ package dexsdk
 type ChainId int64
 
 const (
-	EthMain ChainId = 1  // ethereum mainnet
-	Ropsten ChainId = 3  // ethereum Ropsten testnet
-	Rinkeby ChainId = 4  // ethereum Rinkeby testnet
-	Goerli  ChainId = 5  // ethereum Goerli testnet
-	Kovan   ChainId = 42 // ethereum Kovan testnet
+	EthMain  ChainId = 1     // ethereum mainnet
+	Ropsten  ChainId = 3     // ethereum Ropsten testnet
+	Rinkeby  ChainId = 4     // ethereum Rinkeby testnet
+	Goerli   ChainId = 5     // ethereum Goerli testnet
+	Kovan    ChainId = 42    // ethereum Kovan testnet
+	Optimism ChainId = 10    // ethereum Optimism layer2(L2) mainnet
+	Arbitrum ChainId = 42161 // ethereum Arbitrum layer2(L2) mainnet
 
 	BscMain ChainId = 56 // bsc mainnet
 	BscTest ChainId = 97 // bsc testnet
@@ -19,7 +21,7 @@ const (
 	HecoMain ChainId = 128 // heco mainnet
 	HecoTest ChainId = 256 // heco testnet
 
-	PolygonMain ChainId = 137   // polygon mainnet
+	PolygonMain ChainId = 137   // ethereum sidechain polygon mainnet
 	Mumbai      ChainId = 80001 // polygon mumbai testnet
 
 	Ganache ChainId = 8545 // local testnet
@@ -56,6 +58,10 @@ func (chain ChainId) String() string {
 		return "OKC Mainnet"
 	case OkcTest:
 		return "OKC Testnet"
+	case Arbitrum:
+		return "Arbitrum Mainnet"
+	case Optimism:
+		return "Optimism Mainnet"
 	default:
 		return ""
 	}
@@ -64,7 +70,7 @@ func (chain ChainId) String() string {
 // Symbol of the chain id
 func (chain ChainId) Symbol() string {
 	switch chain {
-	case EthMain, Ropsten, Rinkeby, Goerli, Kovan, Ganache:
+	case EthMain, Ropsten, Rinkeby, Goerli, Kovan, Ganache, Optimism, Arbitrum:
 		return "ETH"
 	case BscMain, BscTest:
 		return "BNB"
@@ -108,6 +114,10 @@ func (chain ChainId) Explorer() string {
 		return "https://www.oklink.com/en/okc/"
 	case OkcTest:
 		return "https://www.oklink.com/en/okc-test/"
+	case Arbitrum:
+		return "https://arbiscan.io/"
+	case Optimism:
+		return "https://optimistic.etherscan.io/"
 	default:
 		return ""
 	}
